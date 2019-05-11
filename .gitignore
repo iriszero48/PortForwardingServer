@@ -50,3 +50,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/PortForwardingServer/obj/x64
+/.vs/PortForwardingServer/v15
