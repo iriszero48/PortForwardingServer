@@ -123,8 +123,8 @@ int main(const int argc, char* argv[])
 		TimePrinter();
 		printf("Swaping User-%s:%d <=> Client-%s:%d.\n", inet_ntoa(inCliAddr.sin_addr), ntohs(inCliAddr.sin_port),
 			inet_ntoa(outCliAddr.sin_addr), ntohs(outCliAddr.sin_port));
-		//if (pthread_join(i2oThread, &ret) != 0) perror("(in2out)Can't join with thread.");
-		//if (pthread_join(o2iThread2, &ret) != 0) perror("(out2in)Can't join with thread.");
+		if (pthread_join(i2oThread, &ret) != 0) perror("(in2out)Can't join with thread.");
+		if (pthread_join(o2iThread2, &ret) != 0) perror("(out2in)Can't join with thread.");
 		TimePrinter();
 		printf("Drop.\n");
 	}
