@@ -55,35 +55,35 @@ int main(const int argc, char* argv[])
 	int one = 1;
 
 	//User listen
-	struct sockaddr_in inSerAddr, inCliAddr;
-	socklen_t socklen = sizeof inCliAddr;
-	const int inSock = socket(AF_INET, SOCK_STREAM, 0);
-	if (inSock < 0) err(1, "(in)Can't open socket %d.", ntohs(inSerAddr.sin_port));
-	setsockopt(inSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
-	inSerAddr.sin_family = AF_INET;
-	inSerAddr.sin_addr.s_addr = INADDR_ANY;
-	inSerAddr.sin_port = htons(atoi(argv[1]));
-	if (bind(inSock, (struct sockaddr *)&inSerAddr, sizeof inSerAddr) == -1)
+	struct sockaddr_in userSerAddr, userCliAddr;
+	socklen_t socklen = sizeof userCliAddr;
+	const int userSock = socket(AF_INET, SOCK_STREAM, 0);
+	if (userSock < 0) err(1, "(user)Can't open socket %d.", ntohs(userSerAddr.sin_port));
+	setsockopt(userSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
+	userSerAddr.sin_family = AF_INET;
+	userSerAddr.sin_addr.s_addr = INADDR_ANY;
+	userSerAddr.sin_port = htons(atoi(argv[1]));
+	if (bind(userSock, (struct sockaddr *)&userSerAddr, sizeof userSerAddr) == -1)
 	{
-		close(inSock);
-		err(1, "(in)Can't bind %d.", ntohs(inSerAddr.sin_port));
+		close(userSock);
+		err(1, "(user)Can't bind %d.", ntohs(userSerAddr.sin_port));
 	}
-	listen(inSock, 5);
+	listen(userSock, 5);
 
 	//Client listen
-	struct sockaddr_in outSerAddr, outCliAddr;
-	const int outSock = socket(AF_INET, SOCK_STREAM, 0);
-	if (outSock < 0) err(1, "(out)Can't open socket %d.", ntohs(outSerAddr.sin_port));
-	setsockopt(outSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
-	outSerAddr.sin_family = AF_INET;
-	outSerAddr.sin_addr.s_addr = INADDR_ANY;
-	outSerAddr.sin_port = htons(atoi(argv[2]));
-	if (bind(outSock, (struct sockaddr *)&outSerAddr, sizeof(outSerAddr)) == -1)
+	struct sockaddr_in clientSerAddr, clientCliAddr;
+	const int clientSock = socket(AF_INET, SOCK_STREAM, 0);
+	if (clientSock < 0) err(1, "(client)Can't open socket %d.", ntohs(clientSerAddr.sin_port));
+	setsockopt(clientSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
+	clientSerAddr.sin_family = AF_INET;
+	clientSerAddr.sin_addr.s_addr = INADDR_ANY;
+	clientSerAddr.sin_port = htons(atoi(argv[2]));
+	if (bind(clientSock, (struct sockaddr *)&clientSerAddr, sizeof(clientSerAddr)) == -1)
 	{
-		close(outSock);
-		err(1, "(out)Can't bind %d.", ntohs(outSerAddr.sin_port));
+		close(clientSock);
+		err(1, "(client)Can't bind %d.", ntohs(clientSerAddr.sin_port));
 	}
-	listen(outSock, 5);
+	listen(clientSock, 5);
 
 	//Start log
 	pthread_t logThread;
@@ -100,31 +100,31 @@ int main(const int argc, char* argv[])
 		printf("Link start...\n");
 
 		//User accept
-		const int inCliFd = accept4(inSock, (struct sockaddr *)&inCliAddr, &socklen, SOCK_CLOEXEC);
+		const int userCliFd = accept4(userSock, (struct sockaddr *)&userCliAddr, &socklen, SOCK_CLOEXEC);
 		TimePrinter();
-		printf("(in)Got connection %d.\n", ntohs(inSerAddr.sin_port));
-		if (inCliFd == -1) perror("(in)Can't accept.");
+		printf("(user)Got connection %d.\n", ntohs(userSerAddr.sin_port));
+		if (userCliFd == -1) perror("(user)Can't accept.");
 
 		//Client accept
-		const int outCliFd = accept4(outSock, (struct sockaddr *)&outCliAddr, &socklen, SOCK_CLOEXEC);
+		const int clientCliFd = accept4(clientSock, (struct sockaddr *)&clientCliAddr, &socklen, SOCK_CLOEXEC);
 		TimePrinter();
-		printf("(out)Got connection %d.\n", ntohs(outSerAddr.sin_port));
-		if (outCliFd == -1) perror("(out)Can't accept.");
+		printf("(client)Got connection %d.\n", ntohs(clientSerAddr.sin_port));
+		if (clientCliFd == -1) perror("(client)Can't accept.");
 
 		//Swap data
-		pthread_t i2oThread, o2iThread2;
+		pthread_t user2clientThread, client2userThread2;
 		void* ret;
-		int i2o[3] = { inCliFd, outCliFd, false };
-		int o2i[3] = { outCliFd, inCliFd, true };
-		if (pthread_create(&i2oThread, NULL, (void *)&Transfer, (void*)i2o) != 0)
-			perror("(in2out)Can't create thread.");
-		if (pthread_create(&o2iThread2, NULL, (void *)&Transfer, (void*)o2i) != 0)
-			perror("(out2in)Can't create thread.");
+		int user2client[3] = { userCliFd, clientCliFd, false };
+		int client2user[3] = { clientCliFd, userCliFd, true };
+		if (pthread_create(&user2clientThread, NULL, (void *)&Transfer, (void*)user2client) != 0)
+			perror("(user2client)Can't create thread.");
+		if (pthread_create(&client2userThread2, NULL, (void *)&Transfer, (void*)client2user) != 0)
+			perror("(client2user)Can't create thread.");
 		TimePrinter();
-		printf("Swaping User-%s:%d <=> Client-%s:%d.\n", inet_ntoa(inCliAddr.sin_addr), ntohs(inCliAddr.sin_port),
-			inet_ntoa(outCliAddr.sin_addr), ntohs(outCliAddr.sin_port));
-		if (pthread_join(i2oThread, &ret) != 0) perror("(in2out)Can't join with thread.");
-		if (pthread_join(o2iThread2, &ret) != 0) perror("(out2in)Can't join with thread.");
+		printf("Swaping (user)%s:%d <=> (client)%s:%d.\n", inet_ntoa(userCliAddr.sin_addr), ntohs(userCliAddr.sin_port),
+			inet_ntoa(clientCliAddr.sin_addr), ntohs(clientCliAddr.sin_port));
+		if (pthread_join(user2clientThread, &ret) != 0) perror("(user2client)Can't join with thread.");
+		if (pthread_join(client2userThread2, &ret) != 0) perror("(client2user)Can't join with thread.");
 		TimePrinter();
 		printf("Drop.\n");
 	}
